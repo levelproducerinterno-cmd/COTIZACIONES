@@ -287,11 +287,19 @@
       <div class="field">
         <label>Precio (MXN)</label>
         <input type="number" id="f-precio" placeholder="15000">
+        <div class="hint" id="f-precio-preview"></div>
       </div>
       <div class="field">
         <label>Fecha</label>
         <input type="date" id="f-fecha">
       </div>
+    </div>
+
+    <div class="field">
+      <label style="display:inline-block; margin-bottom:0;">
+        <input type="checkbox" id="f-iva" style="width:auto; margin-right:8px; vertical-align:middle;">
+        Agregar IVA (16%) al precio de arriba
+      </label>
     </div>
 
     <div class="field">
@@ -379,6 +387,20 @@ nombreInput.addEventListener('input', calculaFolio);
 folioInput.addEventListener('input', () => { folioEditadoManualmente = true; });
 calculaFolio();
 
+function actualizaPreviewPrecio(){
+  const ivaEl = document.getElementById('f-iva');
+  const previewEl = document.getElementById('f-precio-preview');
+  const base = parseInt(precioInput.value || '0', 10);
+  if(ivaEl.checked && base > 0){
+    const total = Math.round(base * 1.16);
+    previewEl.textContent = `Con IVA (16%): $${total.toLocaleString('es-MX')} MXN`;
+  } else {
+    previewEl.textContent = '';
+  }
+}
+precioInput.addEventListener('input', actualizaPreviewPrecio);
+document.getElementById('f-iva').addEventListener('change', actualizaPreviewPrecio);
+
 const DEFAULTS = {
   contenido: {
     8:  {precio:15000, incluye:['Planeación','Producción 8 videos (1-2 días)','Edición','Posteo y calendarización','Informe mensual','Expediente del cliente']},
@@ -400,6 +422,7 @@ function applyDefaults(){
   }
   precioInput.value = data.precio;
   incluyeArea.value = data.incluye.join('\n');
+  if(typeof actualizaPreviewPrecio === 'function') actualizaPreviewPrecio();
 }
 
 servicioSelect.addEventListener('change', () => {
@@ -485,8 +508,14 @@ async function generarPDF(){
     fotografia: 'Fotografías',
     podcast: 'Producción de Podcast'
   }[servicio];
-  const precio = parseInt(precioInput.value || '0', 10);
+  const ivaInput = document.getElementById('f-iva');
+  const precioBase = parseInt(precioInput.value || '0', 10);
+  const aplicaIVA = ivaInput.checked;
+  const precio = aplicaIVA ? Math.round(precioBase * 1.16) : precioBase;
   const incluyeLines = incluyeArea.value.split('\n').map(s=>s.trim()).filter(Boolean);
+  if(aplicaIVA && !incluyeLines.some(l => l.toLowerCase().includes('iva'))){
+    incluyeLines.push('*Este precio ya incluye IVA');
+  }
   const fechaISO = fechaInput.value || hoyISO;
   const fechaObj = new Date(fechaISO + 'T00:00:00');
   const fechaLegible = fechaObj.toLocaleDateString('es-MX', {year:'numeric', month:'long', day:'numeric'});
